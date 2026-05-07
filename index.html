@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineMatch — Find Your Perfect Movie</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        lime: {
+          300: '#bef264',
+          400: '#a3e635',
+          500: '#84cc16',
+          600: '#65a30d',
+          950: '#1a2e05',
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  * { font-family: 'Inter', sans-serif; }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 15px rgba(163, 230, 53, 0.2); }
+    50% { box-shadow: 0 0 25px rgba(163, 230, 53, 0.5); }
+  }
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+  }
+  .animate-fade-in-scale {
+    animation: fadeInScale 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+  }
+  .animate-float { animation: float 6s ease-in-out infinite; }
+  .animate-pulse-glow { animation: pulse-glow 3s infinite; }
+  .animate-spin-slow { animation: spin-slow 20s linear infinite; }
+
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(16px);
+  }
+
+  .input-field {
+    transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .input-field:focus {
+    border-color: #a3e635;
+    box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.2);
+    background: white;
+  }
+
+  .btn-primary {
+    transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn-primary:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 30px -10px rgba(163, 230, 53, 0.4);
+  }
+  .btn-primary:active { transform: translateY(-1px); }
+  .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .movie-card {
+    transition: all 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .movie-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15);
+  }
+
+  .tag-chip {
+    transition: all 200ms ease;
+    cursor: pointer;
+    user-select: none;
+  }
+  .tag-chip:hover { transform: scale(1.05); }
+
+  .match-bar {
+    transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .loading-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .loading-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: shimmer 1.5s infinite;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
+
+  .toast {
+    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .dot-pattern {
+    background-image: radial-gradient(#d4d4d4 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>
+</head>
+<body class="bg-neutral-100 min-h-screen">
+
+<!-- Background Decorations -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+  <div class="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-lime-300/20 rounded-full blur-[120px]"></div>
+  <div class="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] bg-neutral-300/30 rounded-full blur-[120px]"></div>
+  <div class="absolute inset-0 dot-pattern opacity-[0.08]"></div>
+</div>
+
+<!-- Main Container -->
+<div class="relative z-10 max-w-[1300px] mx-auto xl:my-8 xl:rounded-[2.5rem] glass-panel shadow-2xl overflow-hidden animate-fade-in-scale" style="animation-delay: 100ms">
+
+  <!-- Navbar -->
+  <nav class="flex justify-between items-center px-6 md:px-10 xl:px-12 py-5 border-b border-neutral-200/50">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-lime-400 rounded-lg flex items-center justify-center animate-pulse-glow" style="box-shadow: 0 0 15px rgba(163, 230, 53, 0.4)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#171717" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      </div>
+      <span class="text-neutral-900 font-semibold text-sm tracking-tight">CineMatch</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="serverStatus" class="flex items-center gap-1.5 text-[10px] font-medium text-neutral-400 tracking-wide">
+        <span class="w-1.5 h-1.5 rounded-full bg-neutral-300"></span>
+        Checking server...
+      </span>
+      <button onclick="resetForm()" class="text-xs font-medium text-neutral-500 hover:text-neutral-900 transition-colors px-3 py-2 rounded-lg hover:bg-neutral-100">
+        Reset
+      </button>
+      <div class="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-medium">CM</div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <div class="px-6 md:px-10 xl:px-12 pt-12 pb-8 animate-fade-in-up" style="animation-delay: 200ms">
+    <div class="grid lg:grid-cols-12 gap-10 lg:gap-20 items-center">
+      <div class="lg:col-span-7">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-lime-400/10 border border-lime-400/20 mb-6">
+          <span class="w-1.5 h-1.5 bg-lime-400 rounded-full animate-pulse"></span>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-neutral-600">Powered by Node.js</span>
+        </div>
+        <h1 class="text-5xl lg:text-[64px] font-semibold text-neutral-900 tracking-tighter leading-[0.9] mb-6">
+          Find your next
+          <span class="bg-gradient-to-r from-lime-500 to-lime-600 bg-clip-text text-transparent"> favorite</span>
+          movie
+        </h1>
+        <p class="text-sm text-neutral-500 leading-relaxed tracking-wide max-w-md mb-8">
+          Tell us your mood, preferences, and tastes. Our Node.js engine matches you with the perfect film from a handpicked collection of 55+ titles across 7 languages.
+        </p>
+        <div class="flex items-center gap-4">
+          <div class="flex -space-x-2">
+            <img src="https://picsum.photos/seed/user1/64/64.jpg" class="w-8 h-8 rounded-full border-2 border-white object-cover" alt="">
+            <img src="https://picsum.photos/seed/user2/64/64.jpg" class="w-8 h-8 rounded-full border-2 border-white object-cover" alt="">
+            <img src="https://picsum.photos/seed/user3/64/64.jpg" class="w-8 h-8 rounded-full border-2 border-white object-cover" alt="">
+          </div>
+          <p class="text-xs text-neutral-400 tracking-wide"><span class="text-neutral-600 font-medium">2,400+</span> movies matched this week</p>
+        </div>
+      </div>
+      <div class="lg:col-span-5" style="perspective: 1000px;">
+        <div style="transform-style: preserve-3d;" class="animate-float">
+          <div class="relative">
+            <div class="absolute inset-0 bg-lime-400/20 rounded-[2.5rem] blur-xl"></div>
+            <div class="relative aspect-[4/3] rounded-[2rem] overflow-hidden border border-neutral-200/50 bg-neutral-900">
+              <img src="https://picsum.photos/seed/cinema-hall/800/600.jpg" class="w-full h-full object-cover opacity-80" alt="Cinema">
+              <div class="absolute inset-0 bg-gradient-to-t from-neutral-900/80 via-transparent to-transparent"></div>
+              <div class="absolute bottom-6 left-6 right-6">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="px-2 py-0.5 bg-lime-400 text-neutral-900 text-[10px] font-bold uppercase tracking-widest rounded">Featured</span>
+                  <span class="text-white/60 text-[10px] tracking-widest uppercase">2024</span>
+                </div>
+                <p class="text-white font-semibold text-sm tracking-tight">Your perfect movie night starts here</p>
+              </div>
+              <div class="absolute -top-10 -right-10 w-32 h-32 border border-lime-400/20 rounded-full animate-spin-slow"></div>
+              <div class="absolute -bottom-6 -left-6 w-20 h-20 border border-white/10 rounded-full animate-spin-slow" style="animation-direction: reverse;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div class="mx-6 md:mx-10 xl:mx-12 h-px bg-gradient-to-r from-transparent via-neutral-200 to-transparent"></div>
+
+  <!-- Form Section -->
+  <div class="px-6 md:px-10 xl:px-12 py-12 animate-fade-in-up" style="animation-delay: 300ms">
+    <div class="max-w-3xl">
+      <h2 class="text-2xl md:text-3xl font-medium text-neutral-900 tracking-tighter mb-2">Set your preferences</h2>
+      <p class="text-sm text-neutral-400 tracking-wide mb-10">Fill in as many or as few fields as you like. More details = better matches.</p>
+
+      <form id="movieForm">
+        <div class="grid md:grid-cols-2 gap-6">
+
+          <!-- Genre -->
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-2">Genre <span class="text-red-400">*</span></label>
+            <select id="genre" required class="input-field w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white/70 text-sm text-neutral-900 tracking-wide appearance-none cursor-pointer" style="background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a3a3a3%22 stroke-width=%222%22><polyline points=%226 9 12 15 18 9%22/></svg>'); background-repeat: no-repeat; background-position: right 16px center;">
+              <option value="">Select genre...</option>
+            </select>
+          </div>
+
+          <!-- Vibe -->
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-2">Vibe</label>
+            <select id="vibe" class="input-field w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white/70 text-sm text-neutral-900 tracking-wide appearance-none cursor-pointer" style="background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a3a3a3%22 stroke-width=%222%22><polyline points=%226 9 12 15 18 9%22/></svg>'); background-repeat: no-repeat; background-position: right 16px center;">
+              <option value="">Any vibe...</option>
+            </select>
+          </div>
+
+          <!-- Time Period -->
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-2">Time Period</label>
+            <select id="period" class="input-field w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white/70 text-sm text-neutral-900 tracking-wide appearance-none cursor-pointer" style="background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a3a3a3%22 stroke-width=%222%22><polyline points=%226 9 12 15 18 9%22/></svg>'); background-repeat: no-repeat; background-position: right 16px center;">
+              <option value="">Any era...</option>
+              <option value="classic">Classic (before 1980)</option>
+              <option value="80s-90s">80s & 90s</option>
+              <option value="2000s">2000s</option>
+              <option value="2010s">2010s</option>
+              <option value="recent">Recent (2020+)</option>
+            </select>
+          </div>
+
+          <!-- Language -->
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-2">Language</label>
+            <select id="language" class="input-field w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white/70 text-sm text-neutral-900 tracking-wide appearance-none cursor-pointer" style="background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a3a3a3%22 stroke-width=%222%22><polyline points=%226 9 12 15 18 9%22/></svg>'); background-repeat: no-repeat; background-position: right 16px center;">
+              <option value="">Any language...</option>
+            </select>
+          </div>
+
+          <!-- Similar To -->
+          <div class="md:col-span-2">
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-2">Similar to</label>
+            <input type="text" id="similarTo" placeholder="e.g., Inception, Parasite, Breaking Bad..." class="input-field w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white/70 text-sm text-neutral-900 tracking-wide placeholder:text-neutral-300">
+          </div>
+
+          <!-- Actors -->
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-2">Preferred Actors <span class="text-neutral-300 normal-case tracking-normal">(optional)</span></label>
+            <input type="text" id="actors" placeholder="e.g., Leonardo DiCaprio..." class="input-field w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white/70 text-sm text-neutral-900 tracking-wide placeholder:text-neutral-300">
+          </div>
+
+          <!-- Directors -->
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-2">Preferred Directors <span class="text-neutral-300 normal-case tracking-normal">(optional)</span></label>
+            <input type="text" id="directors" placeholder="e.g., Christopher Nolan..." class="input-field w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white/70 text-sm text-neutral-900 tracking-wide placeholder:text-neutral-300">
+          </div>
+
+          <!-- Avoid -->
+          <div class="md:col-span-2">
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-2">Avoid</label>
+            <div class="flex flex-wrap gap-2 mb-2" id="avoidChips">
+              <button type="button" onclick="toggleAvoid(this, 'horror')" class="tag-chip px-3 py-1.5 rounded-full border border-neutral-200 bg-white/60 text-xs font-medium text-neutral-500">Horror</button>
+              <button type="button" onclick="toggleAvoid(this, 'sad endings')" class="tag-chip px-3 py-1.5 rounded-full border border-neutral-200 bg-white/60 text-xs font-medium text-neutral-500">Sad Endings</button>
+              <button type="button" onclick="toggleAvoid(this, 'gore')" class="tag-chip px-3 py-1.5 rounded-full border border-neutral-200 bg-white/60 text-xs font-medium text-neutral-500">Gore</button>
+              <button type="button" onclick="toggleAvoid(this, 'romance')" class="tag-chip px-3 py-1.5 rounded-full border border-neutral-200 bg-white/60 text-xs font-medium text-neutral-500">Romance</button>
+              <button type="button" onclick="toggleAvoid(this, 'slow pace')" class="tag-chip px-3 py-1.5 rounded-full border border-neutral-200 bg-white/60 text-xs font-medium text-neutral-500">Slow Pace</button>
+              <button type="button" onclick="toggleAvoid(this, 'musical')" class="tag-chip px-3 py-1.5 rounded-full border border-neutral-200 bg-white/60 text-xs font-medium text-neutral-500">Musical</button>
+              <button type="button" onclick="toggleAvoid(this, 'animated')" class="tag-chip px-3 py-1.5 rounded-full border border-neutral-200 bg-white/60 text-xs font-medium text-neutral-500">Animated</button>
+              <button type="button" onclick="toggleAvoid(this, 'violence')" class="tag-chip px-3 py-1.5 rounded-full border border-neutral-200 bg-white/60 text-xs font-medium text-neutral-500">Heavy Violence</button>
+            </div>
+            <input type="text" id="avoidText" placeholder="Or type your own..." class="input-field w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white/70 text-sm text-neutral-900 tracking-wide placeholder:text-neutral-300">
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="mt-10 flex items-center gap-4">
+          <button type="submit" id="submitBtn" class="btn-primary inline-flex items-center gap-2 px-8 py-3.5 bg-lime-400 text-neutral-900 text-sm font-semibold tracking-tight rounded-xl">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+            Find Movies
+          </button>
+          <span class="text-xs text-neutral-400 tracking-wide" id="resultCount"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div class="mx-6 md:mx-10 xl:mx-12 h-px bg-gradient-to-r from-transparent via-neutral-200 to-transparent" id="resultDivider" style="display:none"></div>
+
+  <!-- Loading State -->
+  <div id="loadingSection" class="px-6 md:px-10 xl:px-12 py-16" style="display:none">
+    <div class="text-center mb-10">
+      <div class="w-10 h-10 border-2 border-lime-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+      <p class="text-sm text-neutral-400 tracking-wide">Matching movies to your taste...</p>
+    </div>
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="rounded-2xl overflow-hidden"><div class="h-44 loading-shimmer bg-neutral-200 rounded-t-2xl"></div><div class="p-5 bg-white/50"><div class="h-5 bg-neutral-200 rounded-lg mb-3 w-3/4 loading-shimmer"></div><div class="h-3 bg-neutral-100 rounded w-1/2 mb-4 loading-shimmer"></div><div class="h-1.5 bg-neutral-100 rounded-full mb-3 loading-shimmer"></div><div class="h-3 bg-neutral-100 rounded w-full loading-shimmer"></div></div></div>
+      <div class="rounded-2xl overflow-hidden"><div class="h-44 loading-shimmer bg-neutral-200 rounded-t-2xl"></div><div class="p-5 bg-white/50"><div class="h-5 bg-neutral-200 rounded-lg mb-3 w-2/3 loading-shimmer"></div><div class="h-3 bg-neutral-100 rounded w-1/2 mb-4 loading-shimmer"></div><div class="h-1.5 bg-neutral-100 rounded-full mb-3 loading-shimmer"></div><div class="h-3 bg-neutral-100 rounded w-full loading-shimmer"></div></div></div>
+      <div class="rounded-2xl overflow-hidden hidden md:block"><div class="h-44 loading-shimmer bg-neutral-200 rounded-t-2xl"></div><div class="p-5 bg-white/50"><div class="h-5 bg-neutral-200 rounded-lg mb-3 w-4/5 loading-shimmer"></div><div class="h-3 bg-neutral-100 rounded w-1/2 mb-4 loading-shimmer"></div><div class="h-1.5 bg-neutral-100 rounded-full mb-3 loading-shimmer"></div><div class="h-3 bg-neutral-100 rounded w-full loading-shimmer"></div></div></div>
+    </div>
+  </div>
+
+  <!-- Results Section -->
+  <div id="resultsSection" class="px-6 md:px-10 xl:px-12 py-12" style="display:none">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h2 class="text-2xl md:text-3xl font-medium text-neutral-900 tracking-tighter mb-1">Your matches</h2>
+        <p class="text-sm text-neutral-400 tracking-wide" id="resultsSummary"></p>
+      </div>
+      # Updated CineMatch HTML Fixes
+
+Add this complete section at the END of your `index.html` file after the `Results Section`.
+
+```html
+      <button onclick="fetchRecommendations()" class="px-4 py-2 rounded-xl bg-neutral-900 text-white text-sm hover:bg-neutral-700 transition">
+        Refresh Matches
+      </button>
+    </div>
+
+    <div id="movieResults" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+  </div>
+</div>
+
+<script>
+// Sample Data
+const genres = ['Action', 'Comedy', 'Drama', 'Sci-Fi', 'Thriller', 'Romance', 'Horror'];
+const vibes = ['Feel Good', 'Dark', 'Mind-Bending', 'Emotional', 'Inspirational'];
+const languages = ['English', 'Hindi', 'Korean', 'Japanese', 'Spanish'];
+
+const sampleMovies = [
+  {
+    title: 'Inception',
+    genre: 'Sci-Fi',
+    language: 'English',
+    vibe: 'Mind-Bending',
+    year: '2010',
+    match: 98,
+    image: 'https://picsum.photos/seed/inception/500/300'
+  },
+  {
+    title: '3 Idiots',
+    genre: 'Drama',
+    language: 'Hindi',
+    vibe: 'Inspirational',
+    year: '2009',
+    match: 95,
+    image: 'https://picsum.photos/seed/3idiots/500/300'
+  },
+  {
+    title: 'Parasite',
+    genre: 'Thriller',
+    language: 'Korean',
+    vibe: 'Dark',
+    year: '2019',
+    match: 92,
+    image: 'https://picsum.photos/seed/parasite/500/300'
+  }
+];
+
+// Populate Dropdowns
+function populateDropdown(id, data) {
+  const select = document.getElementById(id);
+  data.forEach(item => {
+    const option = document.createElement('option');
+    option.value = item;
+    option.textContent = item;
+    select.appendChild(option);
+  });
+}
+
+populateDropdown('genre', genres);
+populateDropdown('vibe', vibes);
+populateDropdown('language', languages);
+
+// Avoid Chips
+let avoidItems = [];
+
+function toggleAvoid(button, value) {
+  if (avoidItems.includes(value)) {
+    avoidItems = avoidItems.filter(item => item !== value);
+    button.classList.remove('bg-lime-400', 'text-black');
+  } else {
+    avoidItems.push(value);
+    button.classList.add('bg-lime-400', 'text-black');
+  }
+}
+
+// Reset Form
+function resetForm() {
+  document.getElementById('movieForm').reset();
+  document.getElementById('movieResults').innerHTML = '';
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('resultDivider').style.display = 'none';
+}
+
+// Fetch Recommendations
+function fetchRecommendations() {
+  document.getElementById('loadingSection').style.display = 'block';
+  document.getElementById('resultsSection').style.display = 'none';
+
+  setTimeout(() => {
+    document.getElementById('loadingSection').style.display = 'none';
+    displayResults(sampleMovies);
+  }, 1500);
+}
+
+// Form Submit
+const form = document.getElementById('movieForm');
+form.addEventListener('submit', function(e) {
+  e.preventDefault();
+  fetchRecommendations();
+});
+
+// Display Results
+function displayResults(movies) {
+  const container = document.getElementById('movieResults');
+  container.innerHTML = '';
+
+  movies.forEach(movie => {
+    container.innerHTML += `
+      <div class="movie-card bg-white rounded-2xl overflow-hidden shadow-lg border border-neutral-200">
+        <img src="${movie.image}" class="w-full h-52 object-cover" alt="${movie.title}">
+
+        <div class="p-5">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-lg font-semibold text-neutral-900">${movie.title}</h3>
+            <span class="text-xs bg-lime-400 text-black px-2 py-1 rounded-full font-bold">
+              ${movie.match}% Match
+            </span>
+          </div>
+
+          <p class="text-sm text-neutral-500 mb-4">
+            ${movie.genre} • ${movie.language} • ${movie.year}
+          </p>
+
+          <div class="w-full h-2 bg-neutral-200 rounded-full overflow-hidden mb-4">
+            <div class="match-bar h-full bg-lime-400" style="width:${movie.match}%"></div>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-neutral-400 uppercase tracking-wide">${movie.vibe}</span>
+            <button class="px-3 py-1.5 bg-neutral-900 text-white rounded-lg text-xs hover:bg-neutral-700 transition">
+              View Details
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  document.getElementById('resultsSection').style.display = 'block';
+  document.getElementById('resultDivider').style.display = 'block';
+  document.getElementById('resultsSummary').textContent = `${movies.length} movie matches found for your taste.`;
+  document.getElementById('resultCount').textContent = `${movies.length} results`;
+}
+
+// Fake Server Status
+window.onload = () => {
+  const status = document.getElementById('serverStatus');
+  status.innerHTML = `
+    <span class="w-1.5 h-1.5 rounded-full bg-lime-400"></span>
+    Server Online
+  `;
+};
+</script>
+
+</body>
+</html>
